@@ -138,7 +138,9 @@ public static partial class RendererFeatureGenerator
             injected = ReplaceSentinelBlock(injected, tag, replacement);
         }
 
-        return injected;
+        // Avoid introducing mixed line endings when injecting blocks.
+        var nl = DetectPreferredNewline(existing);
+        return NormalizeLineEndings(injected, nl);
     }
 
     private static IEnumerable<string> GetSentinelTagsForFile(string path)
@@ -184,12 +186,18 @@ public static partial class RendererFeatureGenerator
 
         var text = File.ReadAllText(featureFile);
 
-        var classIdx = text.IndexOf($"class {passName}RenderPass", StringComparison.Ordinal);
-        if (classIdx < 0)
-            return false;
+        // Preferred: feature's serialized field default.
+        var m = Regex.Match(text, @"m_" + Regex.Escape(passName) + @"RenderPassEvent\s*=\s*RenderPassEvent\.(\w+)\s*;", RegexOptions.Multiline);
+        if (!m.Success)
+        {
+            // Fallback: older generated code used assignment in the pass ctor.
+            var classIdx = text.IndexOf($"class {passName}RenderPass", StringComparison.Ordinal);
+            if (classIdx < 0)
+                return false;
 
-        var slice = text.Substring(classIdx, Math.Min(5000, text.Length - classIdx));
-        var m = Regex.Match(slice, @"renderPassEvent\s*=\s*RenderPassEvent\.(\w+)\s*;", RegexOptions.Multiline);
+            var slice = text.Substring(classIdx, Math.Min(5000, text.Length - classIdx));
+            m = Regex.Match(slice, @"renderPassEvent\s*=\s*RenderPassEvent\.(\w+)\s*;", RegexOptions.Multiline);
+        }
         if (!m.Success)
             return false;
 

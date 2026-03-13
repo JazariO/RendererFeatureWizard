@@ -1,5 +1,22 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-8095454810359167675
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d35e35f00e3cddd499be3c86c5292662, type: 3}
+  m_Name: InvertColorRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::InvertColorRendererFeature
+  m_Active: 1
+  m_InvertColorSettings: {fileID: 11400000, guid: 8a87e0283ebbc6f4e900f254355a0624, type: 2}
+  m_InvertColorShader: {fileID: 4800000, guid: 73ebe0dcc16192349b7a31a6eb9853e6, type: 3}
+  m_InvertColorRenderPassEvent: 600
+  m_InvertColorPassEventOffset: 0
 --- !u!114 &-3085978257936350630
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15,6 +32,39 @@ MonoBehaviour:
   m_Active: 1
   m_InvertColorSettings: {fileID: 11400000, guid: f34d4a8351c63c843bb52b848ac1e3b3, type: 2}
   m_InvertColorShader: {fileID: 4800000, guid: c743ac7e9697b174db49abd2891c7de2, type: 3}
+--- !u!114 &-2848951594460175157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d35e35f00e3cddd499be3c86c5292662, type: 3}
+  m_Name: InvertColorRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::InvertColorRendererFeature
+  m_Active: 1
+  m_InvertColorSettings: {fileID: 11400000, guid: 8a87e0283ebbc6f4e900f254355a0624, type: 2}
+  m_InvertColorShader: {fileID: 4800000, guid: 73ebe0dcc16192349b7a31a6eb9853e6, type: 3}
+  m_InvertColorRenderPassEvent: 600
+  m_InvertColorPassEventOffset: 0
+--- !u!114 &-1339178304197544518
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05447e2617893b14a845444dacb83efe, type: 3}
+  m_Name: InvertScreenColorsRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::InvertScreenColorsRendererFeature
+  m_Active: 1
+  m_InvertColorSettings: {fileID: 11400000, guid: f34d4a8351c63c843bb52b848ac1e3b3, type: 2}
+  m_InvertColorShader: {fileID: 4800000, guid: c743ac7e9697b174db49abd2891c7de2, type: 3}
+  m_InvertColorMaterial: {fileID: 0}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -41,7 +91,8 @@ MonoBehaviour:
     probeVolumeBlendStatesCS: {fileID: 7200000, guid: b9a23f869c4fd45f19c5ada54dd82176, type: 3}
   m_RendererFeatures:
   - {fileID: 7833122117494664109}
-  m_RendererFeatureMap: ad6b866f10d7b46c
+  - {fileID: 0}
+  m_RendererFeatureMap: ad6b866f10d7b46c2b6bc65f2fad5d0f
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -70,6 +121,40 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
+--- !u!114 &1107231502384917291
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d35e35f00e3cddd499be3c86c5292662, type: 3}
+  m_Name: InvertColorRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::InvertColorRendererFeature
+  m_Active: 1
+  m_InvertColorSettings: {fileID: 11400000, guid: 8a87e0283ebbc6f4e900f254355a0624, type: 2}
+  m_InvertColorShader: {fileID: 4800000, guid: 73ebe0dcc16192349b7a31a6eb9853e6, type: 3}
+  m_InvertColorRenderPassEvent: 600
+  m_InvertColorPassEventOffset: 0
+--- !u!114 &1763236705903266941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d35e35f00e3cddd499be3c86c5292662, type: 3}
+  m_Name: InvertColorRendererFeature
+  m_EditorClassIdentifier: Assembly-CSharp::InvertColorRendererFeature
+  m_Active: 1
+  m_InvertColorSettings: {fileID: 11400000, guid: 8a87e0283ebbc6f4e900f254355a0624, type: 2}
+  m_InvertColorShader: {fileID: 4800000, guid: 73ebe0dcc16192349b7a31a6eb9853e6, type: 3}
+  m_InvertColorRenderPassEvent: 300
+  m_InvertColorPassEventOffset: 0
 --- !u!114 &7833122117494664109
 MonoBehaviour:
   m_ObjectHideFlags: 0

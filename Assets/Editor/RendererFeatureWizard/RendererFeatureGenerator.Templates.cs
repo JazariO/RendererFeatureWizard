@@ -22,6 +22,8 @@ public static partial class RendererFeatureGenerator
         {
             sb.AppendLine($"    [SerializeField] private {pass.passName}Settings m_{pass.passName}Settings;");
             sb.AppendLine($"    [SerializeField] private Shader m_{pass.passName}Shader;");
+            sb.AppendLine($"    [SerializeField] private RenderPassEvent m_{pass.passName}RenderPassEvent = RenderPassEvent.{pass.renderPassEvent};");
+            sb.AppendLine($"    [SerializeField] private int m_{pass.passName}PassEventOffset = 0;");
             sb.AppendLine($"    private Material m_{pass.passName}Material;");
             sb.AppendLine($"    private {pass.passName}RenderPass m_{pass.passName}Pass;");
             sb.AppendLine();
@@ -42,6 +44,9 @@ public static partial class RendererFeatureGenerator
             sb.AppendLine($"        m_{pass.passName}Pass = (m_{pass.passName}Material != null && m_{pass.passName}Settings != null)");
             sb.AppendLine($"            ? new {pass.passName}RenderPass(m_{pass.passName}Material, m_{pass.passName}Settings)");
             sb.AppendLine("            : null;");
+            sb.AppendLine();
+            sb.AppendLine($"        if (m_{pass.passName}Pass != null)");
+            sb.AppendLine($"            m_{pass.passName}Pass.renderPassEvent = (RenderPassEvent)((int)m_{pass.passName}RenderPassEvent + m_{pass.passName}PassEventOffset);");
             sb.AppendLine();
         }
         sb.AppendLine("        // </gen:create-body>");
@@ -145,7 +150,6 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("    {");
         sb.AppendLine("        m_Material = material;");
         sb.AppendLine("        m_Settings = settings;");
-        sb.AppendLine($"        renderPassEvent = RenderPassEvent.{pass.renderPassEvent};");
         sb.AppendLine("        requiresIntermediateTexture = true;");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -262,7 +266,6 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("        // <gen:hlsl-includes>");
         sb.AppendLine("        // Core.hlsl for XR dependencies (TEXTURE2D_X, etc.)");
         sb.AppendLine("        #include \"Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl\"");
-        sb.AppendLine("        #include \"Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl\"");
         sb.AppendLine("        // </gen:hlsl-includes>");
         sb.AppendLine();
         sb.AppendLine("        CBUFFER_START(UnityPerMaterial)");
@@ -273,6 +276,14 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("        CBUFFER_END");
         sb.AppendLine();
         sb.AppendLine("        // <gen:texture-declarations>");
+        sb.AppendLine("        // _BlitTexture is bound by URP's blit utilities when using Blitter.BlitTexture.");
+        sb.AppendLine("        #ifndef UNITY_CORE_BLIT_INCLUDED");
+        sb.AppendLine("        TEXTURE2D_X(_BlitTexture);");
+        sb.AppendLine("        #endif");
+        sb.AppendLine("        #ifndef UNITY_CORE_SAMPLERS_INCLUDED");
+        sb.AppendLine("        SAMPLER(sampler_LinearClamp);");
+        sb.AppendLine("        #endif");
+        sb.AppendLine();
         foreach (var prop in pass.properties.Where(p => p.type == PropertyType.Texture2D))
         {
             var name = ToShaderPropertyName(prop.name);
@@ -295,9 +306,36 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("            #pragma vertex Vert");
         sb.AppendLine("            #pragma fragment Frag");
         sb.AppendLine();
+        sb.AppendLine("            struct Attributes");
+        sb.AppendLine("            {");
+        sb.AppendLine("                uint vertexID : SV_VertexID;");
+        sb.AppendLine("                UNITY_VERTEX_INPUT_INSTANCE_ID");
+        sb.AppendLine("            };");
+        sb.AppendLine();
+        sb.AppendLine("            struct Varyings");
+        sb.AppendLine("            {");
+        sb.AppendLine("                float4 positionCS : SV_POSITION;");
+        sb.AppendLine("                float2 texcoord   : TEXCOORD0;");
+        sb.AppendLine("                UNITY_VERTEX_OUTPUT_STEREO");
+        sb.AppendLine("            };");
+        sb.AppendLine();
+        sb.AppendLine("            Varyings Vert(Attributes input)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                Varyings output;");
+        sb.AppendLine("                UNITY_SETUP_INSTANCE_ID(input);");
+        sb.AppendLine("                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);");
+        sb.AppendLine("                output.positionCS = GetFullScreenTriangleVertexPosition(input.vertexID);");
+        sb.AppendLine("                output.texcoord = GetFullScreenTriangleTexCoord(input.vertexID);");
+        sb.AppendLine("                return output;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
         sb.AppendLine("            half4 Frag(Varyings input) : SV_Target");
         sb.AppendLine("            {");
-        sb.AppendLine("                return FragBlit(input, sampler_LinearClamp);");
+        sb.AppendLine("                // Sample the source texture (XR-safe).");
+        sb.AppendLine("                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);");
+        sb.AppendLine("                float2 uv = input.texcoord;");
+        sb.AppendLine("                half4 col = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv);");
+        sb.AppendLine("                return col;");
         sb.AppendLine("            }");
         sb.AppendLine();
         sb.AppendLine("            ENDHLSL");

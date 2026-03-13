@@ -7,11 +7,13 @@ using UnityEditor;
 #endif
 
 [DisallowMultipleRendererFeature]
-public class InvertScreenColorsRendererFeature : ScriptableRendererFeature
+public class InvertColorRendererFeature : ScriptableRendererFeature
 {
     // <gen:pass-fields>
     [SerializeField] private InvertColorSettings m_InvertColorSettings;
     [SerializeField] private Shader m_InvertColorShader;
+    [SerializeField] private RenderPassEvent m_InvertColorRenderPassEvent = RenderPassEvent.AfterRenderingPostProcessing;
+    [SerializeField] private int m_InvertColorPassEventOffset = 0;
     private Material m_InvertColorMaterial;
     private InvertColorRenderPass m_InvertColorPass;
 
@@ -30,15 +32,15 @@ public class InvertScreenColorsRendererFeature : ScriptableRendererFeature
             ? new InvertColorRenderPass(m_InvertColorMaterial, m_InvertColorSettings)
             : null;
 
+        if (m_InvertColorPass != null)
+            m_InvertColorPass.renderPassEvent = (RenderPassEvent)((int)m_InvertColorRenderPassEvent + m_InvertColorPassEventOffset);
+
         // </gen:create-body>
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
         // <gen:addrendererpasses-body>
-        if (m_InvertColorPass == null && (m_InvertColorSettings != null || m_InvertColorShader != null))
-            Create();
-
         if (m_InvertColorPass != null)
             renderer.EnqueuePass(m_InvertColorPass);
 
@@ -58,7 +60,7 @@ public class InvertScreenColorsRendererFeature : ScriptableRendererFeature
 #if UNITY_EDITOR
     private void OnEnable()
     {
-        var root = "Assets/Scripts/Rendering/InvertScreenColorsRendering";
+        var root = "Assets/Scripts/Rendering/InvertColorRendering";
         var anyChange = false;
 
         if (m_InvertColorSettings == null)
@@ -82,7 +84,6 @@ public class InvertScreenColorsRendererFeature : ScriptableRendererFeature
 
         if (anyChange)
         {
-            Create();
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();
         }
@@ -112,7 +113,6 @@ public class InvertColorRenderPass : ScriptableRenderPass
     {
         m_Material = material;
         m_Settings = settings;
-        renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
         requiresIntermediateTexture = true;
     }
 

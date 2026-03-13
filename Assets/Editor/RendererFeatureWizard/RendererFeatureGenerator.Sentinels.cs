@@ -2,6 +2,28 @@ using System;
 
 public static partial class RendererFeatureGenerator
 {
+    private static string DetectPreferredNewline(string text)
+    {
+        // Favor CRLF if present; Unity on Windows commonly expects it, and it avoids mixed endings on injection.
+        return text != null && text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+    }
+
+    private static string NormalizeLineEndings(string text, string newline)
+    {
+        if (text == null)
+            return "";
+
+        if (string.IsNullOrEmpty(newline))
+            newline = "\n";
+
+        // Collapse to '\n' first, then expand.
+        var t = text.Replace("\r\n", "\n").Replace("\r", "\n");
+        if (newline == "\n")
+            return t;
+
+        return t.Replace("\n", newline);
+    }
+
     private static bool TryGetSentinelBlock(string text, string tag, out string blockText)
     {
         blockText = null;
@@ -41,10 +63,10 @@ public static partial class RendererFeatureGenerator
         var before = text.Substring(0, startContentIdx);
         var after = text.Substring(endContentIdx);
 
-        var normalizedReplacement = "\n" + (replacementBlockText ?? "").Trim('\r', '\n') + "\n";
-        normalizedReplacement = normalizedReplacement.Replace("\r\n", "\n").Replace("\r", "\n");
+        var nl = DetectPreferredNewline(text);
+        var replacement = (replacementBlockText ?? "").Trim('\r', '\n');
+        var normalizedReplacement = nl + NormalizeLineEndings(replacement, nl) + nl;
 
         return before + normalizedReplacement + after;
     }
 }
-

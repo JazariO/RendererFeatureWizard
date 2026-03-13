@@ -7,27 +7,75 @@ using UnityEngine.Rendering.Universal;
 
 public sealed class RendererFeatureWizard : EditorWindow
 {
-    private const string PrefKey = "RendererFeatureWizard.State.v1";
+    // Use SessionState instead of EditorPrefs so the wizard survives domain reloads
+    // while open, but does not "stick" across explicit re-opens from the Create menu.
+    private const string StateKey = "RendererFeatureWizard.State.v1";
+    private const string ForceFreshKey = "RendererFeatureWizard.ForceFresh.v1";
 
     private RendererFeatureWizardData m_Data;
     private Vector2 m_Scroll;
+    private bool m_SuppressSaveOnDisable;
 
     [MenuItem("Assets/Create/Rendering/New Renderer Feature", false, 110)]
     private static void OpenWindow()
     {
-        var w = GetWindow<RendererFeatureWizard>(utility: true, title: "Renderer Feature Wizard");
-        w.minSize = new Vector2(720, 480);
-        w.Show();
+        // Opening from the Create menu should always start fresh, even if an instance is already open.
+        // Close any existing window instances to avoid showing stale in-memory state.
+        foreach (var existing in Resources.FindObjectsOfTypeAll<RendererFeatureWizard>())
+        {
+            existing.m_SuppressSaveOnDisable = true;
+            existing.Close();
+        }
+
+        SessionState.SetBool(ForceFreshKey, true);
+        SessionState.EraseString(StateKey);
+
+        // Delay window creation until after any Close() calls are fully processed by Unity.
+        EditorApplication.delayCall += () =>
+        {
+            var w = CreateInstance<RendererFeatureWizard>();
+            w.titleContent = new GUIContent("Renderer Feature Wizard");
+            w.minSize = new Vector2(720, 480);
+            w.ShowUtility();
+        };
     }
 
     private void OnEnable()
     {
-        m_Data = LoadState() ?? new RendererFeatureWizardData();
+        if (SessionState.GetBool(ForceFreshKey, false))
+        {
+            SessionState.SetBool(ForceFreshKey, false);
+            SessionState.EraseString(StateKey);
+            ForceFreshStart();
+        }
+        else
+        {
+            m_Data = LoadState() ?? new RendererFeatureWizardData();
+        }
+
         EnsurePassList();
+    }
+
+    private void ForceFreshStart()
+    {
+        m_Data = new RendererFeatureWizardData();
+        m_Data.currentPanel = 0;
+        m_Data.reentryLocked = false;
+        m_Data.selectedPassTab = 0;
+        m_Scroll = Vector2.zero;
+        EnsurePassList();
+        SaveState();
+        Repaint();
     }
 
     private void OnDisable()
     {
+        if (m_SuppressSaveOnDisable)
+        {
+            SessionState.EraseString(StateKey);
+            return;
+        }
+
         SaveState();
     }
 
@@ -99,13 +147,14 @@ public sealed class RendererFeatureWizard : EditorWindow
         {
             if (GUILayout.Button("Cancel", GUILayout.Width(120)))
             {
+                m_SuppressSaveOnDisable = true;
                 Close();
                 return;
             }
 
             if (GUILayout.Button("Reset", GUILayout.Width(120)))
             {
-                EditorPrefs.DeleteKey(PrefKey);
+                SessionState.EraseString(StateKey);
                 m_Data = new RendererFeatureWizardData();
                 m_Scroll = Vector2.zero;
                 EnsurePassList();
@@ -269,6 +318,16 @@ public sealed class RendererFeatureWizard : EditorWindow
             EditorGUILayout.LabelField($"{pass.passName} ({pass.properties.Count} properties) - {pass.renderPassEvent}");
         }
 
+        EditorGUILayout.Space(10);
+        m_Data.autoAddToPCRenderer = EditorGUILayout.ToggleLeft("Auto-add to PC_Renderer (Assets/Settings)", m_Data.autoAddToPCRenderer);
+        if (m_Data.autoAddToPCRenderer)
+        {
+            if (RendererFeatureWizardAutoAdd.TryFindDefaultRenderer(out _, out var rendererPath))
+                EditorGUILayout.LabelField($"Target: {rendererPath}");
+            else
+                EditorGUILayout.HelpBox("PC_Renderer (UniversalRendererData) not found under Assets/Settings. Generation will still succeed, but auto-add will be skipped.", MessageType.Info);
+        }
+
         EditorGUILayout.Space(12);
         using (new EditorGUILayout.HorizontalScope())
         {
@@ -281,6 +340,7 @@ public sealed class RendererFeatureWizard : EditorWindow
 
             if (GUILayout.Button("Cancel", GUILayout.Width(120)))
             {
+                m_SuppressSaveOnDisable = true;
                 Close();
                 return;
             }
@@ -292,20 +352,29 @@ public sealed class RendererFeatureWizard : EditorWindow
             {
                 if (GUILayout.Button(buttonLabel, GUILayout.Width(140), GUILayout.Height(28)))
                 {
+                    var title = "RendererFeature Wizard";
+                    var msg = m_Data.reentryLocked
+                        ? $"Update generated blocks for '{m_Data.featureName}' in:\n{outDir}\n\nThis will only rewrite content between // <gen:...> sentinels."
+                        : $"Generate '{m_Data.featureName}' into:\n{outDir}\n\nExisting files may be overwritten on first generation.";
+
+                    if (!EditorUtility.DisplayDialog(title, msg, buttonLabel, "Cancel"))
+                        return;
+
                     try
                     {
+                        if (m_Data.autoAddToPCRenderer && RendererFeatureWizardAutoAdd.TryFindDefaultRenderer(out _, out var rendererPath))
+                        {
+                            RendererFeatureWizardAutoAdd.Request($"{m_Data.featureName}RendererFeature", rendererPath);
+                        }
+
                         RendererFeatureGenerator.GenerateOrUpdate(m_Data, updateExisting: m_Data.reentryLocked);
 
                         var outObj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(outDir);
                         if (outObj != null)
                             EditorGUIUtility.PingObject(outObj);
 
-                        // This is not "in progress" anymore; start fresh next time.
-                        EditorPrefs.DeleteKey(PrefKey);
-                        m_Data = new RendererFeatureWizardData();
-                        m_Scroll = Vector2.zero;
-                        EnsurePassList();
-                        SaveState();
+                        m_SuppressSaveOnDisable = true;
+                        Close();
                     }
                     catch (Exception ex)
                     {
@@ -343,10 +412,7 @@ public sealed class RendererFeatureWizard : EditorWindow
 
     private RendererFeatureWizardData LoadState()
     {
-        if (!EditorPrefs.HasKey(PrefKey))
-            return null;
-
-        var json = EditorPrefs.GetString(PrefKey, "");
+        var json = SessionState.GetString(StateKey, "");
         if (string.IsNullOrWhiteSpace(json))
             return null;
 
@@ -366,7 +432,7 @@ public sealed class RendererFeatureWizard : EditorWindow
             return;
 
         var json = JsonUtility.ToJson(m_Data);
-        EditorPrefs.SetString(PrefKey, json);
+        SessionState.SetString(StateKey, json);
     }
 
     private static bool IsValidPascalIdentifier(string text)

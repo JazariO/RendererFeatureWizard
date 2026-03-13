@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ff5632a2eb413a14e89cbe29cf722706, type: 3}
+  m_Script: {fileID: 11500000, guid: cb484fac28ad9a141a320ec398181058, type: 3}
   m_Name: InvertColorSettings
   m_EditorClassIdentifier: Assembly-CSharp::InvertColorSettings
   intensity: 1
