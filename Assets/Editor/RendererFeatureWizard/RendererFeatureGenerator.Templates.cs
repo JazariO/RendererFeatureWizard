@@ -88,7 +88,7 @@ public static partial class RendererFeatureGenerator
         {
             sb.AppendLine($"        if (m_{pass.passName}Settings == null)");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var settingsPath = $\"{root}/{pass.passName}Settings.asset\";");
+            sb.AppendLine($"            var settingsPath = $\"{{root}}/{pass.passName}Settings.asset\";");
             sb.AppendLine($"            m_{pass.passName}Settings = AssetDatabase.LoadAssetAtPath<{pass.passName}Settings>(settingsPath);");
             sb.AppendLine($"            if (m_{pass.passName}Settings == null)");
             sb.AppendLine("            {");
@@ -100,7 +100,7 @@ public static partial class RendererFeatureGenerator
             sb.AppendLine();
             sb.AppendLine($"        if (m_{pass.passName}Shader == null)");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var shaderPath = $\"{root}/{pass.passName}.shader\";");
+            sb.AppendLine($"            var shaderPath = $\"{{root}}/{pass.passName}.shader\";");
             sb.AppendLine($"            m_{pass.passName}Shader = AssetDatabase.LoadAssetAtPath<Shader>(shaderPath);");
             sb.AppendLine($"            anyChange = anyChange || (m_{pass.passName}Shader != null);");
             sb.AppendLine("        }");

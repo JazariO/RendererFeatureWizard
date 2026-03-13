@@ -109,7 +109,11 @@ public sealed class RendererFeatureWizard : EditorWindow
             {
                 if (GUILayout.Button("Next", GUILayout.Width(120)))
                 {
-                    if (hasSentinels && RendererFeatureGenerator.TryLoadExisting(m_Data.featureName, out var loaded, out var error))
+                    string error = null;
+                    RendererFeatureWizardData loaded = null;
+                    var loadedOk = hasSentinels && RendererFeatureGenerator.TryLoadExisting(m_Data.featureName, out loaded, out error);
+
+                    if (loadedOk)
                     {
                         m_Data = loaded;
                     }
