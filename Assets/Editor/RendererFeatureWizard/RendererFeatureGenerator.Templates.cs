@@ -8,6 +8,7 @@ public static partial class RendererFeatureGenerator
         var sb = new StringBuilder(4096);
         sb.AppendLine("using UnityEngine;");
         sb.AppendLine("using UnityEngine.Rendering;");
+        sb.AppendLine("using UnityEngine.Rendering.RenderGraphModule;");
         sb.AppendLine("using UnityEngine.Rendering.Universal;");
         sb.AppendLine("#if UNITY_EDITOR");
         sb.AppendLine("using UnityEditor;");
@@ -56,13 +57,6 @@ public static partial class RendererFeatureGenerator
             sb.AppendLine();
         }
         sb.AppendLine("        // </gen:addrendererpasses-body>");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.AppendLine("    public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        // <gen:setuprenderpasses-body>");
-        sb.AppendLine("        // Intentionally empty for the boilerplate.");
-        sb.AppendLine("        // </gen:setuprenderpasses-body>");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    protected override void Dispose(bool disposing)");
@@ -114,18 +108,21 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("    }");
         sb.AppendLine("#endif");
         sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("// <gen:pass-classes>");
+        foreach (var pass in data.passes)
+        {
+            sb.AppendLine(GenerateRenderPassClass(pass));
+            sb.AppendLine();
+        }
+        sb.AppendLine("// </gen:pass-classes>");
 
         return sb.ToString();
     }
 
-    private static string GenerateRenderPassFile(RendererFeatureWizardData.PassConfig pass)
+    private static string GenerateRenderPassClass(RendererFeatureWizardData.PassConfig pass)
     {
-        var sb = new StringBuilder(4096);
-        sb.AppendLine("using UnityEngine;");
-        sb.AppendLine("using UnityEngine.Rendering;");
-        sb.AppendLine("using UnityEngine.Rendering.RenderGraphModule;");
-        sb.AppendLine("using UnityEngine.Rendering.Universal;");
-        sb.AppendLine();
+        var sb = new StringBuilder(3072);
         sb.AppendLine($"public class {pass.passName}RenderPass : ScriptableRenderPass");
         sb.AppendLine("{");
         sb.AppendLine("    private static readonly Vector4 k_ScaleBias = new Vector4(1f, 1f, 0f, 0f);");
@@ -149,6 +146,7 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("        m_Material = material;");
         sb.AppendLine("        m_Settings = settings;");
         sb.AppendLine($"        renderPassEvent = RenderPassEvent.{pass.renderPassEvent};");
+        sb.AppendLine("        requiresIntermediateTexture = true;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)");
@@ -162,7 +160,7 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("        {");
         sb.AppendLine("            // <gen:record-body>");
         sb.AppendLine("            passData.material = m_Material;");
-        sb.AppendLine("            passData.source = resourcesData.cameraColor;");
+        sb.AppendLine("            passData.source = resourcesData.activeColorTexture;");
         sb.AppendLine();
         sb.AppendLine("            var descriptor = passData.source.GetDescriptor(renderGraph);");
         sb.AppendLine("            descriptor.msaaSamples = MSAASamples.None;");
@@ -174,8 +172,8 @@ public static partial class RendererFeatureGenerator
         foreach (var prop in pass.properties)
             sb.AppendLine($"            passData.{prop.name} = m_Settings.{ToPascal(prop.name)};");
         sb.AppendLine();
-        sb.AppendLine("            builder.UseTexture(passData.source);");
-        sb.AppendLine("            builder.SetRenderAttachment(passData.destination, 0);");
+        sb.AppendLine("            builder.UseTexture(passData.source, AccessFlags.Read);");
+        sb.AppendLine("            builder.SetRenderAttachment(passData.destination, 0, AccessFlags.Write);");
         sb.AppendLine();
         sb.AppendLine("            resourcesData.cameraColor = passData.destination;");
         sb.AppendLine("            // </gen:record-body>");
@@ -201,6 +199,18 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
+        return sb.ToString();
+    }
+
+    private static string GenerateLegacyRenderPassFile(RendererFeatureWizardData.PassConfig pass)
+    {
+        var sb = new StringBuilder(4096);
+        sb.AppendLine("using UnityEngine;");
+        sb.AppendLine("using UnityEngine.Rendering;");
+        sb.AppendLine("using UnityEngine.Rendering.RenderGraphModule;");
+        sb.AppendLine("using UnityEngine.Rendering.Universal;");
+        sb.AppendLine();
+        sb.AppendLine(GenerateRenderPassClass(pass));
         return sb.ToString();
     }
 
@@ -249,16 +259,18 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("        Tags { \"RenderType\" = \"Opaque\" \"RenderPipeline\" = \"UniversalPipeline\" }");
         sb.AppendLine();
         sb.AppendLine("        HLSLINCLUDE");
+        sb.AppendLine("        // <gen:hlsl-includes>");
+        sb.AppendLine("        // Core.hlsl for XR dependencies (TEXTURE2D_X, etc.)");
         sb.AppendLine("        #include \"Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl\"");
-        sb.AppendLine("        // <gen:hlsl-includes-end>");
+        sb.AppendLine("        #include \"Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl\"");
+        sb.AppendLine("        // </gen:hlsl-includes>");
         sb.AppendLine();
-        sb.AppendLine("        cbuffer UnityPerMaterial");
-        sb.AppendLine("        {");
+        sb.AppendLine("        CBUFFER_START(UnityPerMaterial)");
         sb.AppendLine("            // <gen:cbuffer-properties>");
         foreach (var prop in pass.properties.Where(p => p.type != PropertyType.Texture2D))
             sb.AppendLine($"            {GetHlslCbufferLine(prop)}");
         sb.AppendLine("            // </gen:cbuffer-properties>");
-        sb.AppendLine("        };");
+        sb.AppendLine("        CBUFFER_END");
         sb.AppendLine();
         sb.AppendLine("        // <gen:texture-declarations>");
         foreach (var prop in pass.properties.Where(p => p.type == PropertyType.Texture2D))
@@ -274,26 +286,18 @@ public static partial class RendererFeatureGenerator
         sb.AppendLine("        Pass");
         sb.AppendLine("        {");
         sb.AppendLine($"            Name \"{pass.passName}\"");
-        sb.AppendLine("            Tags { \"LightMode\" = \"UniversalForward\" }");
+        sb.AppendLine();
+        sb.AppendLine("            ZWrite Off");
+        sb.AppendLine("            ZTest Always");
+        sb.AppendLine("            Cull Off");
         sb.AppendLine();
         sb.AppendLine("            HLSLPROGRAM");
-        sb.AppendLine("            #pragma vertex vert");
-        sb.AppendLine("            #pragma fragment frag");
+        sb.AppendLine("            #pragma vertex Vert");
+        sb.AppendLine("            #pragma fragment Frag");
         sb.AppendLine();
-        sb.AppendLine("            struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };");
-        sb.AppendLine("            struct Varyings   { float4 positionHCS : SV_POSITION; float2 uv : TEXCOORD0; };");
-        sb.AppendLine();
-        sb.AppendLine("            Varyings vert(Attributes IN)");
+        sb.AppendLine("            half4 Frag(Varyings input) : SV_Target");
         sb.AppendLine("            {");
-        sb.AppendLine("                Varyings OUT;");
-        sb.AppendLine("                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);");
-        sb.AppendLine("                OUT.uv = IN.uv;");
-        sb.AppendLine("                return OUT;");
-        sb.AppendLine("            }");
-        sb.AppendLine();
-        sb.AppendLine("            half4 frag(Varyings IN) : SV_Target");
-        sb.AppendLine("            {");
-        sb.AppendLine("                return half4(1, 1, 1, 1);");
+        sb.AppendLine("                return FragBlit(input, sampler_LinearClamp);");
         sb.AppendLine("            }");
         sb.AppendLine();
         sb.AppendLine("            ENDHLSL");

@@ -99,11 +99,12 @@ public static partial class RendererFeatureGenerator
         foreach (var pass in data.passes)
         {
             var settingsPath = Path.Combine(outDir, $"{pass.passName}Settings.cs");
-            var passPath = Path.Combine(outDir, $"{pass.passName}RenderPass.cs");
+            var legacyPassPath = Path.Combine(outDir, $"{pass.passName}RenderPass.cs");
             var shaderPath = Path.Combine(outDir, $"{pass.passName}.shader");
 
             WriteFile(settingsPath, GenerateOrInject(settingsPath, updateExisting, GenerateSettingsFile(pass)));
-            WriteFile(passPath, GenerateOrInject(passPath, updateExisting, GenerateRenderPassFile(pass)));
+            if (updateExisting && File.Exists(legacyPassPath))
+                WriteFile(legacyPassPath, GenerateOrInject(legacyPassPath, updateExisting, GenerateLegacyRenderPassFile(pass)));
             WriteFile(shaderPath, GenerateOrInject(shaderPath, updateExisting, GenerateShaderFile(pass)));
         }
 
@@ -146,7 +147,7 @@ public static partial class RendererFeatureGenerator
         var name = Path.GetFileName(path);
 
         if (ext.Equals(".shader", StringComparison.OrdinalIgnoreCase))
-            return new[] { "gen:shader-properties", "gen:cbuffer-properties", "gen:texture-declarations" };
+            return new[] { "gen:hlsl-includes", "gen:shader-properties", "gen:cbuffer-properties", "gen:texture-declarations" };
 
         if (name.EndsWith("Settings.cs", StringComparison.OrdinalIgnoreCase))
             return new[] { "gen:so-properties" };
@@ -155,7 +156,7 @@ public static partial class RendererFeatureGenerator
             return new[] { "gen:pass-data-class", "gen:record-body", "gen:execute-body" };
 
         if (name.EndsWith("RendererFeature.cs", StringComparison.OrdinalIgnoreCase))
-            return new[] { "gen:pass-fields", "gen:create-body", "gen:addrendererpasses-body", "gen:setuprenderpasses-body", "gen:dispose-body" };
+            return new[] { "gen:pass-fields", "gen:create-body", "gen:addrendererpasses-body", "gen:dispose-body", "gen:pass-classes" };
 
         return Array.Empty<string>();
     }
@@ -163,12 +164,32 @@ public static partial class RendererFeatureGenerator
     private static bool TryLoadRenderPassEvent(string outDir, string passName, out RenderPassEvent evt)
     {
         evt = RenderPassEvent.AfterRenderingOpaques;
-        var passPath = Path.Combine(outDir, $"{passName}RenderPass.cs");
-        if (!File.Exists(passPath))
+        // Legacy structure: pass is in its own file.
+        var legacyPassPath = Path.Combine(outDir, $"{passName}RenderPass.cs");
+        if (File.Exists(legacyPassPath))
+        {
+            var legacyText = File.ReadAllText(legacyPassPath);
+            var legacyMatch = Regex.Match(legacyText, @"renderPassEvent\s*=\s*RenderPassEvent\.(\w+)\s*;", RegexOptions.Multiline);
+            if (legacyMatch.Success && Enum.TryParse(legacyMatch.Groups[1].Value, out RenderPassEvent legacyParsed))
+            {
+                evt = legacyParsed;
+                return true;
+            }
+        }
+
+        // New structure: pass class lives in the feature file.
+        var featureFile = Directory.GetFiles(outDir, "*RendererFeature.cs", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        if (string.IsNullOrEmpty(featureFile) || !File.Exists(featureFile))
             return false;
 
-        var text = File.ReadAllText(passPath);
-        var m = Regex.Match(text, @"renderPassEvent\s*=\s*RenderPassEvent\.(\w+)\s*;", RegexOptions.Multiline);
+        var text = File.ReadAllText(featureFile);
+
+        var classIdx = text.IndexOf($"class {passName}RenderPass", StringComparison.Ordinal);
+        if (classIdx < 0)
+            return false;
+
+        var slice = text.Substring(classIdx, Math.Min(5000, text.Length - classIdx));
+        var m = Regex.Match(slice, @"renderPassEvent\s*=\s*RenderPassEvent\.(\w+)\s*;", RegexOptions.Multiline);
         if (!m.Success)
             return false;
 

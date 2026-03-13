@@ -103,6 +103,16 @@ public sealed class RendererFeatureWizard : EditorWindow
                 return;
             }
 
+            if (GUILayout.Button("Reset", GUILayout.Width(120)))
+            {
+                EditorPrefs.DeleteKey(PrefKey);
+                m_Data = new RendererFeatureWizardData();
+                m_Scroll = Vector2.zero;
+                EnsurePassList();
+                SaveState();
+                GUIUtility.ExitGUI();
+            }
+
             GUILayout.FlexibleSpace();
 
             using (new EditorGUI.DisabledScope(!IsValidPascalIdentifier(m_Data.featureName)))
@@ -289,6 +299,13 @@ public sealed class RendererFeatureWizard : EditorWindow
                         var outObj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(outDir);
                         if (outObj != null)
                             EditorGUIUtility.PingObject(outObj);
+
+                        // This is not "in progress" anymore; start fresh next time.
+                        EditorPrefs.DeleteKey(PrefKey);
+                        m_Data = new RendererFeatureWizardData();
+                        m_Scroll = Vector2.zero;
+                        EnsurePassList();
+                        SaveState();
                     }
                     catch (Exception ex)
                     {
