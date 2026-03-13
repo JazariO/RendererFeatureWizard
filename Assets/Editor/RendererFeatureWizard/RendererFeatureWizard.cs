@@ -61,6 +61,7 @@ public sealed class RendererFeatureWizard : EditorWindow
         m_Data = new RendererFeatureWizardData();
         m_Data.currentPanel = 0;
         m_Data.reentryLocked = false;
+        m_Data.autoAddToPCRenderer = true;
         m_Data.selectedPassTab = 0;
         m_Scroll = Vector2.zero;
         EnsurePassList();

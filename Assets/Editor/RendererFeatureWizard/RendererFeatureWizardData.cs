@@ -8,7 +8,7 @@ public sealed class RendererFeatureWizardData
 {
     public int currentPanel = 0;
     public bool reentryLocked;
-    public bool autoAddToPCRenderer;
+    public bool autoAddToPCRenderer = true;
 
     public string featureName = "NewFeature";
 
